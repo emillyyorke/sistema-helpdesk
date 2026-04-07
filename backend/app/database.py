@@ -1,5 +1,4 @@
 """Configurações e setup do banco de dados."""
-import os
 from pydantic_settings import BaseSettings
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
@@ -18,9 +17,14 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
+# Normaliza a URL: Postgres precisa do driver psycopg2 explicitamente.
+db_url = settings.DATABASE_URL
+if db_url.startswith("postgresql://"):
+    db_url = db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+
 # SQLite precisa de connect_args; Postgres não.
-connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
-engine = create_engine(settings.DATABASE_URL, connect_args=connect_args, pool_pre_ping=True)
+connect_args = {"check_same_thread": False} if db_url.startswith("sqlite") else {}
+engine = create_engine(db_url, connect_args=connect_args, pool_pre_ping=True)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
