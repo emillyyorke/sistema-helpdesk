@@ -1,0 +1,22 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Banco de dados local
+*.db
+*.sqlite
+*.sqlite3
+
+# Variáveis de ambiente (NUNCA commitar)
+.env
+
+# Uploads de usuários
+backend/uploads/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+.DS_Store

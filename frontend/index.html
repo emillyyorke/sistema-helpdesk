@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HelpDesk ✨</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="auth" class="auth-wrap">
+  <div class="auth-card">
+    <h1>HelpDesk ✨</h1>
+    <p class="sub">Sistema de gerenciamento de chamados</p>
+    <div class="auth-tabs">
+      <button id="tabLogin" class="active" onclick="switchTab('login')">Entrar</button>
+      <button id="tabReg" onclick="switchTab('reg')">Cadastrar</button>
+    </div>
+
+    <div id="formLogin">
+      <div class="field"><label>E-mail</label><input id="loginEmail" type="email" placeholder="voce@empresa.com"></div>
+      <div class="field"><label>Senha</label><input id="loginPass" type="password" placeholder="••••••••"></div>
+      <button class="btn-primary" style="width:100%" onclick="doLogin()">Entrar</button>
+      <div id="loginErr" class="err"></div>
+    </div>
+
+    <div id="formReg" style="display:none">
+      <div class="field"><label>Nome completo</label><input id="regName"></div>
+      <div class="field"><label>E-mail</label><input id="regEmail" type="email"></div>
+      <div class="field"><label>Senha</label><input id="regPass" type="password" placeholder="mínimo 6 caracteres"></div>
+      <button class="btn-primary" style="width:100%" onclick="doRegister()">Criar conta</button>
+      <p style="font-size:12px;color:var(--muted);margin-top:14px;text-align:center">
+        Novos usuários entram como solicitantes. Apenas o administrador pode promover.
+      </p>
+      <div id="regErr" class="err"></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" class="app" style="display:none">
+  <aside class="sidebar">
+    <div class="logo">HelpDesk ✨</div>
+    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="ico">📊</span><span>Dashboard</span></div>
+    <div class="nav-item" data-page="tickets" onclick="navigate('tickets')"><span class="ico">🎫</span><span>Chamados</span></div>
+    <div class="nav-item" data-page="kb" onclick="navigate('kb')"><span class="ico">📚</span><span>Base de Conhecimento</span></div>
+    <div class="nav-item" data-page="users" onclick="navigate('users')"><span class="ico">👥</span><span>Usuários</span></div>
+    <div class="user-box">
+      <b id="userName">—</b>
+      <small id="userRole">—</small>
+      <button onclick="logout()">Sair</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- DASHBOARD -->
+    <section id="page-dashboard">
+      <div class="page-header"><div><h2>Dashboard</h2><p>Visão geral dos chamados</p></div></div>
+      <div class="stats" id="statsBox"></div>
+      <div class="card"><h3 style="margin-top:0">Chamados recentes</h3><div id="recentTickets"></div></div>
+    </section>
+
+    <!-- TICKETS -->
+    <section id="page-tickets" style="display:none">
+      <div class="page-header">
+        <div><h2>Chamados</h2><p>Gerencie todos os chamados</p></div>
+        <button class="btn-primary" onclick="openTicketModal()">+ Novo chamado</button>
+      </div>
+      <div class="toolbar">
+        <input id="searchT" placeholder="🔍 Buscar..." oninput="loadTickets()">
+        <select id="filterStatus" onchange="loadTickets()">
+          <option value="">Todos os status</option>
+          <option value="aberto">Aberto</option>
+          <option value="em_andamento">Em andamento</option>
+          <option value="aguardando">Aguardando</option>
+          <option value="resolvido">Resolvido</option>
+          <option value="fechado">Fechado</option>
+        </select>
+        <select id="filterPri" onchange="loadTickets()">
+          <option value="">Todas prioridades</option>
+          <option value="baixa">Baixa</option><option value="media">Média</option>
+          <option value="alta">Alta</option><option value="critica">Crítica</option>
+        </select>
+        <select id="filterCat" onchange="loadTickets()">
+          <option value="">Todas categorias</option>
+          <option>Hardware</option><option>Software</option><option>Rede</option>
+          <option>Acesso</option><option>E-mail</option><option>Outros</option>
+        </select>
+        <select id="filterAssignee" onchange="loadTickets()" style="display:none">
+          <option value="">Todos atribuídos</option>
+          <option value="0">Sem atribuição</option>
+        </select>
+      </div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>Protocolo</th><th>Título</th><th>Categoria</th><th>Prioridade</th><th>Status</th><th>Solicitante</th><th>Atribuído</th><th>Aberto em</th></tr></thead>
+          <tbody id="ticketsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- KB -->
+    <section id="page-kb" style="display:none">
+      <div class="page-header">
+        <div><h2>Base de Conhecimento</h2><p>Artigos, tutoriais e soluções</p></div>
+        <button class="btn-primary" id="btnNewKb" onclick="openKbModal()">+ Novo artigo</button>
+      </div>
+      <div class="toolbar"><input id="searchKb" placeholder="🔍 Buscar artigos..." oninput="loadArticles()"></div>
+      <div id="kbList" class="kb-grid"></div>
+    </section>
+
+    <!-- USERS -->
+    <section id="page-users" style="display:none">
+      <div class="page-header"><div><h2>Usuários</h2><p>Gerencie funções e veja a carga de cada analista</p></div></div>
+      <div class="card" style="padding:0;overflow:hidden">
+        <table>
+          <thead><tr><th>Nome</th><th>E-mail</th><th>Função</th><th>Abertos por</th><th>Em aberto na caixa</th><th>Total atendidos</th><th>Ações</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- MODAL NOVO TICKET -->
+<div class="modal-bg" id="modalTicket">
+  <div class="modal">
+    <button class="close" onclick="closeModal('modalTicket')">×</button>
+    <h3>Novo chamado</h3>
+    <div class="field"><label>Título</label><input id="tTitle" placeholder="Resumo do problema"></div>
+    <div class="grid-2">
+      <div class="field"><label>Categoria</label>
+        <select id="tCat"><option>Hardware</option><option>Software</option><option>Rede</option><option>Acesso</option><option>E-mail</option><option>Outros</option></select>
+      </div>
+      <div class="field"><label>Prioridade</label>
+        <select id="tPri"><option value="baixa">Baixa</option><option value="media" selected>Média</option><option value="alta">Alta</option><option value="critica">Crítica</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Descrição detalhada</label><textarea id="tDesc" rows="5" placeholder="Descreva o problema, passos para reproduzir, mensagens de erro..."></textarea></div>
+    <div class="field"><label>Atribuir a (opcional)</label><select id="tAssign"><option value="">— Não atribuir —</option></select></div>
+    <button class="btn-primary" style="width:100%" onclick="createTicket()">Abrir chamado</button>
+    <div id="tErr" class="err"></div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE TICKET -->
+<div class="modal-bg" id="modalDetail">
+  <div class="modal" id="detailContent"></div>
+</div>
+
+<!-- MODAL NOVO ARTIGO KB -->
+<div class="modal-bg" id="modalKb">
+  <div class="modal">
+    <button class="close" onclick="closeModal('modalKb')">×</button>
+    <h3>Novo artigo</h3>
+    <div class="field"><label>Título</label><input id="kTitle"></div>
+    <div class="field"><label>Categoria</label><input id="kCat" placeholder="Ex: Impressoras, VPN, Outlook..."></div>
+    <div class="field"><label>Conteúdo</label><textarea id="kBody" rows="8"></textarea></div>
+    <div class="field"><label>Links úteis (uma URL por linha)</label><textarea id="kLinks" rows="3" placeholder="https://docs.microsoft.com/...&#10;https://suporte.exemplo.com/artigo/123"></textarea></div>
+    <div class="field">
+      <label>Arquivos (PDFs, instaladores, imagens — máx 20 MB cada)</label>
+      <input id="kFiles" type="file" multiple style="padding:8px">
+    </div>
+    <button class="btn-primary" style="width:100%" onclick="createArticle()">Publicar artigo</button>
+    <div id="kErr" class="err"></div>
+  </div>
+</div>
+
+<!-- MODAL VIEW ARTIGO -->
+<div class="modal-bg" id="modalKbView">
+  <div class="modal" id="kbViewContent"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+
+<div style="position:fixed;bottom:10px;right:14px;font-size:11px;color:#a89dc7;font-family:-apple-system,sans-serif;letter-spacing:.3px;pointer-events:none;z-index:50">
+  feito por <b style="color:#7c5cff">Emilly Yorke</b>
+</div>
+</body>
+</html>
