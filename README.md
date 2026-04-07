@@ -1,8 +1,8 @@
 # HelpDesk ✨ — Sistema de Chamados
 
-Sistema completo de gerenciamento de chamados de suporte técnico, com backend em **FastAPI** e frontend em **HTML/CSS/JS puro**. Paleta lilás/azul/rosa pra combinar com o portfólio.
+Sistema completo de gerenciamento de chamados de suporte técnico, com backend em **FastAPI** e frontend em **HTML/CSS/JS puro**.
 
-Feito com 💜 por **Emilly Yorke**.
+Feito por **Emilly Yorke**.
 
 ---
 
