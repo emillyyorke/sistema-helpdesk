@@ -40,7 +40,8 @@
 
 <!-- APP -->
 <div id="app" class="app" style="display:none">
-  <aside class="sidebar">
+  <div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
+  <aside class="sidebar" id="sidebar">
     <div class="logo">HelpDesk ✨</div>
     <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="ico">📊</span><span>Dashboard</span></div>
     <div class="nav-item" data-page="tickets" onclick="navigate('tickets')"><span class="ico">🎫</span><span>Chamados</span></div>
@@ -55,6 +56,10 @@
   </aside>
 
   <main class="main">
+    <div class="mobile-topbar">
+      <button class="hamburger" onclick="toggleDrawer()" aria-label="Menu">☰</button>
+      <div class="logo">HelpDesk ✨</div>
+    </div>
     <!-- DASHBOARD -->
     <section id="page-dashboard">
       <div class="page-header"><div><h2>Dashboard</h2><p>Visão geral dos chamados</p></div></div>
