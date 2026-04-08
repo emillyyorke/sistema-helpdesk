@@ -169,12 +169,30 @@ function replayAnim(el) {
   el.classList.add("page-anim");
 }
 
+function toggleDrawer() {
+  const sb = document.getElementById("sidebar");
+  const ov = document.getElementById("drawerOverlay");
+  const open = !sb.classList.contains("open");
+  sb.classList.toggle("open", open);
+  ov.classList.toggle("show", open);
+  document.body.style.overflow = open ? "hidden" : "";
+}
+
+function closeDrawer() {
+  const sb = document.getElementById("sidebar");
+  const ov = document.getElementById("drawerOverlay");
+  sb.classList.remove("open");
+  ov.classList.remove("show");
+  document.body.style.overflow = "";
+}
+
 function navigate(page) {
   document.querySelectorAll(".nav-item").forEach(n =>
     n.classList.toggle("active", n.dataset.page === page));
   ["dashboard", "tickets", "kb", "users"].forEach(p =>
     document.getElementById("page-" + p).style.display = p === page ? "" : "none");
   replayAnim(document.getElementById("page-" + page));
+  closeDrawer();
   if (page === "dashboard") loadDashboard();
   if (page === "tickets") loadTickets();
   if (page === "kb") loadArticles();
