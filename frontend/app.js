@@ -4,18 +4,43 @@ let token = localStorage.getItem("hd_token");
 let me = JSON.parse(localStorage.getItem("hd_me") || "null");
 
 /* ---------- API helper ---------- */
+let _activeRequests = 0;
+function _showLoader() {
+  _activeRequests++;
+  let el = document.getElementById("topLoader");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "topLoader";
+    el.className = "top-loader";
+    document.body.appendChild(el);
+  }
+  el.classList.add("show");
+}
+function _hideLoader() {
+  _activeRequests = Math.max(0, _activeRequests - 1);
+  if (_activeRequests === 0) {
+    const el = document.getElementById("topLoader");
+    if (el) el.classList.remove("show");
+  }
+}
+
 async function api(path, { method = "GET", body = null, auth = true } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth && token) headers.Authorization = "Bearer " + token;
-  const res = await fetch(API + path, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : null,
-  });
-  if (res.status === 204) return null;
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.detail || "Erro na requisição");
-  return data;
+  _showLoader();
+  try {
+    const res = await fetch(API + path, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : null,
+    });
+    if (res.status === 204) return null;
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "Erro na requisição");
+    return data;
+  } finally {
+    _hideLoader();
+  }
 }
 
 /* ---------- AUTH ---------- */
@@ -137,11 +162,19 @@ function setSolicTab(tab) {
 }
 
 /* ---------- NAV ---------- */
+function replayAnim(el) {
+  if (!el) return;
+  el.classList.remove("page-anim");
+  void el.offsetWidth;
+  el.classList.add("page-anim");
+}
+
 function navigate(page) {
   document.querySelectorAll(".nav-item").forEach(n =>
     n.classList.toggle("active", n.dataset.page === page));
   ["dashboard", "tickets", "kb", "users"].forEach(p =>
     document.getElementById("page-" + p).style.display = p === page ? "" : "none");
+  replayAnim(document.getElementById("page-" + page));
   if (page === "dashboard") loadDashboard();
   if (page === "tickets") loadTickets();
   if (page === "kb") loadArticles();
@@ -166,6 +199,7 @@ async function loadDashboard() {
         <td><span class="badge st-${t.status}">${humanStatus(t.status)}</span></td>
         <td><span class="badge pri-${t.priority}">${t.priority}</span></td>
         <td>${fmt(t.created_at)}</td></tr>`).join("")}</tbody></table>`;
+    replayAnim(document.getElementById("page-dashboard"));
   } catch (e) { console.error(e); }
 }
 
@@ -203,6 +237,7 @@ async function loadTickets() {
       <td>${t.assignee ? esc(t.assignee.name) : "—"}</td>
       <td>${fmt(t.created_at)}</td>
     </tr>`).join("");
+    replayAnim(document.getElementById("page-tickets"));
   } catch (e) { console.error(e); }
 }
 
@@ -402,13 +437,18 @@ async function loadArticles() {
   const q = document.getElementById("searchKb").value.trim();
   const list = await api("/articles" + (q ? "?q=" + encodeURIComponent(q) : ""));
   const box = document.getElementById("kbList");
-  if (!list.length) { box.innerHTML = `<div class="empty"><div class="big">📚</div>Nenhum artigo ainda</div>`; return; }
+  if (!list.length) {
+    box.innerHTML = `<div class="empty"><div class="big">📚</div>Nenhum artigo ainda</div>`;
+    replayAnim(document.getElementById("page-kb"));
+    return;
+  }
   box.innerHTML = list.map(a => `
     <div class="kb-card" onclick="openArticle(${a.id})">
       <h4>${esc(a.title)}</h4>
       <p>${esc(a.body)}</p>
       <span class="tag">${esc(a.category)}</span>
     </div>`).join("");
+  replayAnim(document.getElementById("page-kb"));
 }
 
 function openKbModal() {
@@ -553,6 +593,7 @@ async function loadUsers() {
       </td>
     </tr>`;
   }).join("");
+  replayAnim(document.getElementById("page-users"));
 }
 
 async function changeRole(id, role) {
