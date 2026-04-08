@@ -85,11 +85,37 @@ def me(user: models.User = Depends(security.get_current_user)):
     return user
 
 
+@app.post("/auth/change-password", tags=["auth"])
+def change_password(data: schemas.PasswordChange,
+                    db: Session = Depends(get_db),
+                    user: models.User = Depends(security.get_current_user)):
+    if not security.verify_password(data.current_password, user.password_hash):
+        raise HTTPException(400, "Senha atual incorreta")
+    user.password_hash = security.hash_password(data.new_password)
+    db.commit()
+    return {"ok": True}
+
+
 # ============ USERS ============
 @app.get("/users", response_model=List[schemas.UserOut], tags=["users"])
 def list_users(db: Session = Depends(get_db),
                _: models.User = Depends(security.get_current_user)):
     return db.query(models.User).order_by(models.User.name).all()
+
+
+@app.post("/users", response_model=schemas.UserOut, tags=["users"])
+def admin_create_user(data: schemas.UserCreateByAdmin,
+                      db: Session = Depends(get_db),
+                      _: models.User = Depends(security.require_admin)):
+    if db.query(models.User).filter(models.User.email == data.email).first():
+        raise HTTPException(400, "E-mail já cadastrado")
+    user = models.User(
+        name=data.name, email=data.email,
+        password_hash=security.hash_password(data.password),
+        role=data.role,
+    )
+    db.add(user); db.commit(); db.refresh(user)
+    return user
 
 
 @app.get("/users/staff", response_model=List[schemas.UserOut], tags=["users"])
