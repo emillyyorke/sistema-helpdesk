@@ -207,7 +207,8 @@ async function loadDashboard() {
       <div class="stat-card purple"><div class="lbl">Total</div><div class="val">${stats.total}</div></div>
       <div class="stat-card blue"><div class="lbl">Abertos</div><div class="val">${stats.by_status.aberto}</div></div>
       <div class="stat-card pink"><div class="lbl">Em andamento</div><div class="val">${stats.by_status.em_andamento}</div></div>
-      <div class="stat-card green"><div class="lbl">Resolvidos</div><div class="val">${stats.by_status.resolvido}</div></div>`;
+      <div class="stat-card green"><div class="lbl">Resolvidos</div><div class="val">${stats.by_status.resolvido}</div></div>
+      <div class="stat-card" style="border-color:${stats.overdue>0?'#ff6b8a':''}"><div class="lbl" style="color:${stats.overdue>0?'#ff6b8a':''}">⚠️ Atrasados (SLA)</div><div class="val" style="color:${stats.overdue>0?'#ff6b8a':'var(--ok)'}">${stats.overdue || 0}</div></div>`;
     const recent = (await api("/tickets")).slice(0, 5);
     const target = document.getElementById("recentTickets");
     if (!recent.length) { target.innerHTML = `<div class="empty"><div class="big">📭</div>Nenhum chamado ainda</div>`; return; }
@@ -245,16 +246,19 @@ async function loadTickets() {
     }
     const body = document.getElementById("ticketsBody");
     if (!list.length) { body.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="big">📭</div>Nenhum chamado encontrado</div></td></tr>`; return; }
-    body.innerHTML = list.map(t => `<tr class="row-click" onclick="openTicketDetail(${t.id})">
+    body.innerHTML = list.map(t => {
+      const open = ["aberto","em_andamento","aguardando"].includes(t.status);
+      const overdue = open && t.due_at && new Date(t.due_at + (t.due_at.endsWith("Z")?"":"Z")) < new Date();
+      return `<tr class="row-click" onclick="openTicketDetail(${t.id})">
       <td><b style="color:var(--lilac-600)">${esc(t.protocol)}</b></td>
       <td>${esc(t.title)}</td>
       <td>${esc(t.category)}</td>
       <td><span class="badge pri-${t.priority}">${t.priority}</span></td>
-      <td><span class="badge st-${t.status}">${humanStatus(t.status)}</span></td>
+      <td><span class="badge st-${t.status}">${humanStatus(t.status)}</span>${overdue ? ' <span class="badge" style="background:#ffe7ec;color:#c43757" title="SLA estourado">⚠️ Atrasado</span>' : ''}</td>
       <td>${esc(t.requester.name)}</td>
       <td>${t.assignee ? esc(t.assignee.name) : "—"}</td>
       <td>${fmt(t.created_at)}</td>
-    </tr>`).join("");
+    </tr>`;}).join("");
     replayAnim(document.getElementById("page-tickets"));
   } catch (e) { console.error(e); }
 }
@@ -329,6 +333,7 @@ async function openTicketDetail(id) {
         </div>
         <div><small style="color:var(--muted)">Aberto em</small><br>${fmt(t.created_at)}</div>
         <div><small style="color:var(--muted)">${closed ? "Finalizado em" : "Última atualização"}</small><br>${fmt(t.resolved_at || t.updated_at)}</div>
+        ${t.due_at && !closed ? `<div style="grid-column:1/-1;background:${new Date(t.due_at+(t.due_at.endsWith('Z')?'':'Z'))<new Date()?'#ffe7ec':'#fff5e1'};border-radius:10px;padding:10px 14px"><small style="color:var(--muted)">⏱️ Prazo SLA</small><br><b style="color:${new Date(t.due_at+(t.due_at.endsWith('Z')?'':'Z'))<new Date()?'#c43757':'#a26a00'}">${fmt(t.due_at)}${new Date(t.due_at+(t.due_at.endsWith('Z')?'':'Z'))<new Date()?' (atrasado)':''}</b></div>` : ""}
       </div>
 
       ${isAdmin() || (isStaff() && !closed && t.assignee) ? `
