@@ -49,6 +49,7 @@
     <div class="user-box">
       <b id="userName">—</b>
       <small id="userRole">—</small>
+      <button onclick="openPasswordModal()" style="background:#fff;color:var(--lilac-600);font-size:12px;padding:8px;margin-top:8px;width:100%">Trocar senha</button>
       <button onclick="logout()">Sair</button>
     </div>
   </aside>
@@ -112,7 +113,10 @@
 
     <!-- USERS -->
     <section id="page-users" style="display:none">
-      <div class="page-header"><div><h2>Usuários</h2><p>Gerencie funções e veja a carga de cada analista</p></div></div>
+      <div class="page-header">
+        <div><h2>Usuários</h2><p>Gerencie funções e veja a carga de cada analista</p></div>
+        <button class="btn-primary" onclick="openNewUserModal()">+ Novo usuário</button>
+      </div>
       <div class="card" style="padding:0;overflow:hidden">
         <table>
           <thead><tr><th>Nome</th><th>E-mail</th><th>Função</th><th>Abertos por</th><th>Em aberto na caixa</th><th>Total atendidos</th><th>Ações</th></tr></thead>
@@ -170,6 +174,42 @@
 <!-- MODAL VIEW ARTIGO -->
 <div class="modal-bg" id="modalKbView">
   <div class="modal" id="kbViewContent"></div>
+</div>
+
+<!-- MODAL TROCAR SENHA -->
+<div class="modal-bg" id="modalPwd">
+  <div class="modal" style="max-width:460px">
+    <button class="close" onclick="closeModal('modalPwd')">×</button>
+    <h3>Trocar senha</h3>
+    <div class="field"><label>Senha atual</label><input id="pwdCurrent" type="password"></div>
+    <div class="field"><label>Nova senha</label><input id="pwdNew" type="password" placeholder="mínimo 6 caracteres"></div>
+    <div class="field"><label>Confirmar nova senha</label><input id="pwdConfirm" type="password"></div>
+    <button class="btn-primary" style="width:100%" onclick="changePassword()">Salvar nova senha</button>
+    <div id="pwdErr" class="err"></div>
+  </div>
+</div>
+
+<!-- MODAL NOVO USUÁRIO (admin) -->
+<div class="modal-bg" id="modalNewUser">
+  <div class="modal" style="max-width:480px">
+    <button class="close" onclick="closeModal('modalNewUser')">×</button>
+    <h3>Cadastrar novo usuário</h3>
+    <div class="field"><label>Nome completo</label><input id="nuName"></div>
+    <div class="field"><label>E-mail</label><input id="nuEmail" type="email"></div>
+    <div class="field"><label>Função</label>
+      <select id="nuRole">
+        <option value="solicitante">Solicitante</option>
+        <option value="analista">Analista</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <div class="field"><label>Senha provisória</label><input id="nuPass" type="password" placeholder="mínimo 6 caracteres"></div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 14px">
+      Informe a senha ao usuário e oriente que ele a troque pelo botão "Trocar senha" no rodapé do menu lateral.
+    </p>
+    <button class="btn-primary" style="width:100%" onclick="adminCreateUser()">Criar usuário</button>
+    <div id="nuErr" class="err"></div>
+  </div>
 </div>
 
 <script src="config.js"></script>
