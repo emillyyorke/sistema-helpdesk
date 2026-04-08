@@ -579,6 +579,48 @@ function viewUserQueue(userId) {
   }, 50);
 }
 
+/* ---------- PASSWORD / NOVO USUÁRIO ---------- */
+function openPasswordModal() {
+  ["pwdCurrent","pwdNew","pwdConfirm"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("pwdErr").textContent = "";
+  document.getElementById("modalPwd").classList.add("show");
+}
+
+async function changePassword() {
+  const current = document.getElementById("pwdCurrent").value;
+  const next = document.getElementById("pwdNew").value;
+  const confirm = document.getElementById("pwdConfirm").value;
+  const err = document.getElementById("pwdErr");
+  if (next.length < 6) { err.textContent = "A nova senha precisa ter pelo menos 6 caracteres."; return; }
+  if (next !== confirm) { err.textContent = "A confirmação não confere."; return; }
+  try {
+    await api("/auth/change-password", { method: "POST", body: { current_password: current, new_password: next } });
+    closeModal("modalPwd");
+    alert("Senha alterada com sucesso.");
+  } catch (e) { err.textContent = e.message; }
+}
+
+function openNewUserModal() {
+  ["nuName","nuEmail","nuPass"].forEach(id => document.getElementById(id).value = "");
+  document.getElementById("nuRole").value = "solicitante";
+  document.getElementById("nuErr").textContent = "";
+  document.getElementById("modalNewUser").classList.add("show");
+}
+
+async function adminCreateUser() {
+  const body = {
+    name: document.getElementById("nuName").value.trim(),
+    email: document.getElementById("nuEmail").value.trim(),
+    password: document.getElementById("nuPass").value,
+    role: document.getElementById("nuRole").value,
+  };
+  try {
+    await api("/users", { method: "POST", body });
+    closeModal("modalNewUser");
+    loadUsers();
+  } catch (e) { document.getElementById("nuErr").textContent = e.message; }
+}
+
 /* ---------- HELPERS ---------- */
 function closeModal(id) { document.getElementById(id).classList.remove("show"); }
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
