@@ -13,6 +13,18 @@ class UserCreate(BaseModel):
     role: Role = Role.SOLICITANTE
 
 
+class UserCreateByAdmin(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    email: EmailStr
+    password: str = Field(min_length=6, max_length=100)
+    role: Role = Role.SOLICITANTE
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=100)
+
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
