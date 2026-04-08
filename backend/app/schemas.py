@@ -103,6 +103,7 @@ class TicketOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     resolved_at: Optional[datetime]
+    due_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
