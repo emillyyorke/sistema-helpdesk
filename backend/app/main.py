@@ -2,9 +2,11 @@
 import os
 import uuid
 import random
+import smtplib
+from email.message import EmailMessage
 from typing import Optional, List
-from datetime import datetime
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
+from datetime import datetime, timedelta
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -20,10 +22,45 @@ UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 MAX_UPLOAD_SIZE = 20 * 1024 * 1024  # 20 MB
 
+# SLA em horas por prioridade — ajuste conforme a realidade da operação
+SLA_HOURS = {
+    models.Priority.CRITICA: 4,
+    models.Priority.ALTA: 24,
+    models.Priority.MEDIA: 72,
+    models.Priority.BAIXA: 168,
+}
+
+# SMTP — configurado via variáveis de ambiente. Se SMTP_HOST estiver vazio, e-mails são silenciosamente ignorados.
+SMTP_HOST = os.getenv("SMTP_HOST", "")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
+
+
+def send_email(to: str, subject: str, body: str):
+    """Envio de e-mail simples via SMTP. Silencioso se SMTP não estiver configurado."""
+    if not SMTP_HOST or not to:
+        return
+    try:
+        msg = EmailMessage()
+        msg["From"] = SMTP_FROM
+        msg["To"] = to
+        msg["Subject"] = subject
+        msg.set_content(body)
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as s:
+            s.starttls()
+            if SMTP_USER:
+                s.login(SMTP_USER, SMTP_PASSWORD)
+            s.send_message(msg)
+    except Exception as e:
+        print(f"[email] falha ao enviar para {to}: {e}")
+
+
 app = FastAPI(
     title="HelpDesk API",
     description="Sistema de gerenciamento de chamados de suporte técnico",
-    version="1.2.0",
+    version="1.3.0",
 )
 
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
@@ -179,12 +216,15 @@ def delete_user(user_id: int,
 # ============ TICKETS ============
 @app.post("/tickets", response_model=schemas.TicketDetail, tags=["tickets"])
 def create_ticket(data: schemas.TicketCreate,
+                  background: BackgroundTasks,
                   db: Session = Depends(get_db),
                   user: models.User = Depends(security.get_current_user)):
+    sla_hours = SLA_HOURS.get(data.priority, 72)
     ticket = models.Ticket(
         protocol=generate_protocol(db),
         title=data.title, description=data.description, category=data.category,
         priority=data.priority, requester_id=user.id, assignee_id=data.assignee_id,
+        due_at=datetime.utcnow() + timedelta(hours=sla_hours),
     )
     db.add(ticket); db.flush()
     log_history(db, ticket, user, f"Chamado {ticket.protocol} criado por {user.name}")
@@ -192,7 +232,22 @@ def create_ticket(data: schemas.TicketCreate,
         target = db.query(models.User).get(data.assignee_id)
         if target:
             log_history(db, ticket, user, f"Atribuído a {target.name}")
+            background.add_task(
+                send_email, target.email,
+                f"[HelpDesk] Chamado {ticket.protocol} atribuído a você",
+                f"Olá {target.name},\n\nVocê foi atribuído(a) ao chamado:\n\n"
+                f"Protocolo: {ticket.protocol}\nTítulo: {ticket.title}\n"
+                f"Prioridade: {ticket.priority.value}\nPrazo SLA: {sla_hours}h\n\n"
+                f"Solicitante: {user.name}\nDescrição: {ticket.description}",
+            )
     db.commit(); db.refresh(ticket)
+    background.add_task(
+        send_email, user.email,
+        f"[HelpDesk] Chamado {ticket.protocol} aberto",
+        f"Olá {user.name},\n\nSeu chamado foi registrado.\n\n"
+        f"Protocolo: {ticket.protocol}\nTítulo: {ticket.title}\n"
+        f"Prioridade: {ticket.priority.value}\nPrazo SLA: {sla_hours}h",
+    )
     return ticket
 
 
@@ -247,8 +302,15 @@ def stats(db: Session = Depends(get_db),
     by_priority = dict(
         base.with_entities(models.Ticket.priority, func.count()).group_by(models.Ticket.priority).all()
     )
+    open_statuses = [models.TicketStatus.ABERTO, models.TicketStatus.EM_ANDAMENTO, models.TicketStatus.AGUARDANDO]
+    overdue = base.filter(
+        models.Ticket.status.in_(open_statuses),
+        models.Ticket.due_at.isnot(None),
+        models.Ticket.due_at < datetime.utcnow(),
+    ).count()
     return {
         "total": total,
+        "overdue": overdue,
         "by_status": {s.value: by_status.get(s, 0) for s in models.TicketStatus},
         "by_priority": {p.value: by_priority.get(p, 0) for p in models.Priority},
     }
@@ -268,6 +330,7 @@ def get_ticket(ticket_id: int,
 
 @app.patch("/tickets/{ticket_id}", response_model=schemas.TicketDetail, tags=["tickets"])
 def update_ticket(ticket_id: int, data: schemas.TicketUpdate,
+                  background: BackgroundTasks,
                   db: Session = Depends(get_db),
                   user: models.User = Depends(security.get_current_user)):
     t = db.query(models.Ticket).get(ticket_id)
@@ -300,6 +363,13 @@ def update_ticket(ticket_id: int, data: schemas.TicketUpdate,
         elif k == "assignee_id":
             target = db.query(models.User).get(v) if v else None
             log_history(db, t, user, f"Atribuído a {target.name}" if target else "Atribuição removida")
+            if target:
+                background.add_task(
+                    send_email, target.email,
+                    f"[HelpDesk] Chamado {t.protocol} repassado a você",
+                    f"Olá {target.name},\n\nO chamado {t.protocol} ({t.title}) "
+                    f"foi atribuído a você por {user.name}.\n\nPrioridade: {t.priority.value}",
+                )
         elif k == "priority":
             log_history(db, t, user, f"Prioridade alterada para '{v.value if hasattr(v,'value') else v}'")
         else:
@@ -310,6 +380,7 @@ def update_ticket(ticket_id: int, data: schemas.TicketUpdate,
 
 @app.post("/tickets/{ticket_id}/resolve", response_model=schemas.TicketDetail, tags=["tickets"])
 def resolve_ticket(ticket_id: int, data: schemas.TicketResolve,
+                   background: BackgroundTasks,
                    db: Session = Depends(get_db),
                    user: models.User = Depends(security.require_staff)):
     """Finaliza um chamado. Exige um comentário de resolução."""
@@ -326,6 +397,13 @@ def resolve_ticket(ticket_id: int, data: schemas.TicketResolve,
                           body=f"✅ Resolução: {t.resolution}"))
     log_history(db, t, user, f"Chamado finalizado por {user.name}")
     db.commit(); db.refresh(t)
+    background.add_task(
+        send_email, t.requester.email,
+        f"[HelpDesk] Chamado {t.protocol} finalizado",
+        f"Olá {t.requester.name},\n\nSeu chamado foi finalizado.\n\n"
+        f"Protocolo: {t.protocol}\nTítulo: {t.title}\n"
+        f"Resolução: {t.resolution}\n\nAtendente: {user.name}",
+    )
     return t
 
 
