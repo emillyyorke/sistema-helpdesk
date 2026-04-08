@@ -1,7 +1,7 @@
 # HelpDesk ✨ — Sistema de Chamados
 
 Projeto pessoal de um sistema completo de gerenciamento de chamados de suporte técnico, com backend em **FastAPI** e frontend em **HTML/CSS/JS puro**.
-
+Site hospedado em: https://emillyyorke.github.io/sistema-chamados/
 Feito por **Emilly Yorke**.
 
 ---
