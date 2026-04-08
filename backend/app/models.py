@@ -60,6 +60,7 @@ class Ticket(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    due_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     requester = relationship("User", back_populates="tickets_created", foreign_keys=[requester_id])
     assignee = relationship("User", back_populates="tickets_assigned", foreign_keys=[assignee_id])
